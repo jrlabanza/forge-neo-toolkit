@@ -1,0 +1,2 @@
+# sd-forge-civitai-helper
+"Civitai" tab. Matches LoRA files to Civitai by SHA256 and writes, next to each file: `<name>.preview.png` (card thumbnail), `<name>.json` "activation text" (trigger words auto-inserted when you click the card), `<name>.civitai.json` (metadata). "Check for updates" compares your version against the newest on Civitai. Never overwrites existing previews or your own metadata edits. Needs internet when fetching; hashes are cached so re-runs are fast.

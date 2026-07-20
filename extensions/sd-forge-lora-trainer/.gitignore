@@ -1,0 +1,17 @@
+# Runtime artifacts - regenerated on first use
+sd-scripts/
+sd-scripts-venv/
+projects/
+downloads/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,25 @@
+# Python runtime
+__pycache__/
+*.pyc
+*.pyo
+
+# Personal / runtime data — never commit even if a sync copies it by accident
+**/param_cache.json
+**/favorites.json
+**/gallery_settings.json
+**/hashes.json
+**/results.json
+**/civitai_settings.json
+**/queue.json
+**/notify_settings.json
+**/user_data/
+**/wd14_model/
+
+# Heavy third-party payloads fetched at runtime (lora-trainer)
+**/sd-scripts/
+**/sd-scripts-venv/
+**/downloads/
+**/projects/
+
+# Editors
+.vscode/
