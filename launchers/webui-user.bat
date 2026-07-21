@@ -29,8 +29,17 @@
 ::   --medvram --lowvram  Not needed at 8 GB VRAM with the reserves above.
 ::   --no-half            SDXL needs fp16 for VRAM fit; --no-half would OOM.
 ::
-:: set PYTHON=
-:: set GIT=
+:: Use the venv's python directly - this machine has no system python
+:: (Stability Matrix manages its own), and webui.bat's first check would
+:: otherwise die on the bare "python" Store alias before reaching the venv.
+cd /D "%~dp0"
+set PYTHON="%~dp0venv\Scripts\python.exe"
+
+:: GitPython inside Forge needs a git executable; none is on PATH, so point
+:: it at the PortableGit that lives in this folder (webui.bat exports it as
+:: GIT_PYTHON_GIT_EXECUTABLE).
+if exist "%~dp0PortableGit\cmd\git.exe" set "GIT=%~dp0PortableGit\cmd\git.exe"
+
 :: set VENV_DIR=
 
 :: --api: enables the local API on 127.0.0.1 (not exposed to the network).

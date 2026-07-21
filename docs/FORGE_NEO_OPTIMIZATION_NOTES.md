@@ -23,6 +23,14 @@ _Follow-up session 2026-07-20 — see section 0 below._
 ### Launch args change
 `--api` added to both launchers — enables the local API on 127.0.0.1 only (not exposed to your network). Required by the Job Runner tab. If you launch through Stability Matrix instead of the bats, add `--api` there too.
 
+### 2026-07-21 — upstream update applied + standalone launch fixes
+- Updated to upstream neo `1fe0cb44` (75 commits: Krea2/PiD/Qwen3-VL support, faster LoRA loading, int8, hires/refiner work). Rollback: `git reset --hard backup/pre-update-20260720`.
+- `PortableGit\` now lives in this folder (official git-for-windows 2.55, checksum-verified). All bats + Forge's GitPython use it automatically.
+- Launchers now set `PYTHON` to the venv and `GIT` to PortableGit — this machine has no system python/git, which used to make standalone (non-Stability-Matrix) launches fail.
+- `fix_and_launch.bat` — repair launcher: kills stale python processes that lock venv DLLs, then starts normally. Use it if a launch ever dies mid-update.
+- **Local core patch**: `modules/images.py` wraps `import pillow_jxl` in try/except — Windows Application Control blocks the new JXL plugin DLL on this machine. Only JPEG-XL format support is affected. If a future update conflicts on that file, re-apply the guard or accept upstream and re-patch.
+- Console notes on startup: the "PyTorch 2.10 outdated" banner is informational (our torch/sage combo is intentional); adetailer suggests migrating to ADetailer-Neo eventually — current fork works.
+
 ### New launcher: `webui-user-faststart.bat`
 Same GPU args as `webui-user.bat` plus `--skip-prepare-environment --skip-torch-cuda-test --skip-version-check`. Saves ~15–40 s per start. Use the normal `webui-user.bat` once after installing/updating extensions or Forge itself. NOTE: first launch after adding the two new extensions must be via `webui-user.bat`.
 

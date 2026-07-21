@@ -17,6 +17,10 @@
 :: it repairs the environment automatically.
 :: ============================================================================
 
+cd /D "%~dp0"
+set PYTHON="%~dp0venv\Scripts\python.exe"
+if exist "%~dp0PortableGit\cmd\git.exe" set "GIT=%~dp0PortableGit\cmd\git.exe"
+
 set COMMANDLINE_ARGS=--reserve-vram 2 --pin-shared-memory --cuda-malloc --cuda-stream --skip-python-version-check --disable-gpu-warning --api --skip-prepare-environment --skip-torch-cuda-test --skip-version-check
 
 call webui.bat
