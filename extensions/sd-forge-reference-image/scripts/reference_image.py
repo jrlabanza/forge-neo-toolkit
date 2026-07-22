@@ -29,6 +29,53 @@ MODE_TO_FILENAME = {
     MODE_PRECISE: "ip-adapter-plus-face_sdxl_vit-h.safetensors",
 }
 
+# ---------------------------------------------------------------------------
+# Vibe library (NAI-style saved vibes): PNG + json per entry, stored locally
+# ---------------------------------------------------------------------------
+
+LIB_DIR = Path(__file__).resolve().parents[1] / "vibe_library"
+
+
+def _lib_list():
+    try:
+        return sorted(p.stem for p in LIB_DIR.glob("*.png"))
+    except Exception:
+        return []
+
+
+def _lib_save(image, mode, strength, name):
+    import json
+    import numpy as np
+    from PIL import Image as PILImage
+    name = "".join(c for c in (name or "").strip() if c.isalnum() or c in " _-")[:60]
+    if image is None or not name:
+        return gr.update(choices=_lib_list()), "Give it a name and a reference image first."
+    try:
+        LIB_DIR.mkdir(parents=True, exist_ok=True)
+        PILImage.fromarray(np.asarray(image).astype("uint8")).save(LIB_DIR / f"{name}.png")
+        (LIB_DIR / f"{name}.json").write_text(
+            json.dumps({"mode": mode, "strength": float(strength)}), encoding="utf-8")
+        return gr.update(choices=_lib_list(), value=name), f"Saved vibe '{name}'."
+    except Exception as exc:
+        logger.warning(f"{TAG} vibe save failed: {exc}")
+        return gr.update(choices=_lib_list()), f"Save failed: {exc}"
+
+
+def _lib_load(name):
+    import json
+    import numpy as np
+    from PIL import Image as PILImage
+    if not name:
+        return gr.update(), gr.update(), gr.update(), "Pick a saved vibe first."
+    try:
+        img = np.asarray(PILImage.open(LIB_DIR / f"{name}.png").convert("RGB"))
+        meta = json.loads((LIB_DIR / f"{name}.json").read_text(encoding="utf-8"))
+        return (img, meta.get("mode", MODE_VIBE),
+                float(meta.get("strength", 0.7)), f"Loaded vibe '{name}'.")
+    except Exception as exc:
+        logger.warning(f"{TAG} vibe load failed: {exc}")
+        return gr.update(), gr.update(), gr.update(), f"Load failed: {exc}"
+
 
 def _find_ipadapter_model(filename):
     try:
@@ -226,12 +273,12 @@ class ReferenceImageScript(scripts.Script if scripts else object):
     def ui(self, is_img2img):
         with gr.Accordion("\U0001F4F8 Reference Image (NovelAI-style)", open=False):
             gr.Markdown(
-                "Drop a reference, pick mode, set strength. "
-                "IPAdapter is applied automatically with PyTorch attention "
-                "(Sage is hot-swapped to avoid NaN; restored after the gen)."
+                "Drop a reference, pick mode, set strength. Stack up to three "
+                "references (like NAI vibe stacking) and save favorites to the "
+                "vibe library. Sage attention is hot-swapped automatically."
             )
             with gr.Row():
-                ref_image = gr.Image(label="Reference image", type="numpy", height=240)
+                ref_image = gr.Image(label="Reference 1", type="numpy", height=240)
                 with gr.Column():
                     mode = gr.Radio(
                         choices=[MODE_OFF, MODE_VIBE, MODE_PRECISE],
@@ -242,63 +289,109 @@ class ReferenceImageScript(scripts.Script if scripts else object):
                         minimum=0.0, maximum=1.5, step=0.05, value=0.7,
                         label="Reference strength",
                     )
-        return [ref_image, mode, strength]
+            with gr.Row():
+                lib_name = gr.Textbox(label="Vibe name", scale=2,
+                                      placeholder="e.g. watercolor-soft")
+                lib_save_btn = gr.Button("\U0001F4BE Save vibe", scale=0)
+                lib_dd = gr.Dropdown(label="Vibe library", choices=_lib_list(),
+                                     scale=2)
+                lib_load_btn = gr.Button("\U0001F4E5 Load", scale=0)
+                lib_refresh_btn = gr.Button("\U0001F504", scale=0)
+            lib_status = gr.Markdown("")
+            with gr.Accordion("Stack more references (2 & 3)", open=False):
+                with gr.Row():
+                    ref_image2 = gr.Image(label="Reference 2", type="numpy",
+                                          height=200)
+                    with gr.Column():
+                        mode2 = gr.Radio(choices=[MODE_OFF, MODE_VIBE, MODE_PRECISE],
+                                         value=MODE_OFF, label="Mode 2")
+                        strength2 = gr.Slider(0.0, 1.5, step=0.05, value=0.5,
+                                              label="Strength 2")
+                with gr.Row():
+                    ref_image3 = gr.Image(label="Reference 3", type="numpy",
+                                          height=200)
+                    with gr.Column():
+                        mode3 = gr.Radio(choices=[MODE_OFF, MODE_VIBE, MODE_PRECISE],
+                                         value=MODE_OFF, label="Mode 3")
+                        strength3 = gr.Slider(0.0, 1.5, step=0.05, value=0.5,
+                                              label="Strength 3")
+                gr.Markdown("*Each stacked reference adds VRAM cost — on 8 GB, "
+                            "two is comfortable, three is tight. Lower strengths "
+                            "when stacking.*")
+
+            lib_save_btn.click(_lib_save, [ref_image, mode, strength, lib_name],
+                               [lib_dd, lib_status])
+            lib_load_btn.click(_lib_load, [lib_dd],
+                               [ref_image, mode, strength, lib_status])
+            lib_refresh_btn.click(lambda: gr.update(choices=_lib_list()), [],
+                                  [lib_dd])
+        return [ref_image, mode, strength,
+                ref_image2, mode2, strength2,
+                ref_image3, mode3, strength3]
 
     def process_before_every_sampling(self, p, *args, **kwargs):
         if len(args) < 3:
             return
-        ref_image, mode, strength = args[0], args[1], args[2]
-        if mode == MODE_OFF or ref_image is None or strength <= 0.0:
+        # up to three (image, mode, strength) slots — stacked like NAI vibes
+        slots = []
+        for i in range(0, min(len(args), 9), 3):
+            triple = args[i:i + 3]
+            if len(triple) < 3:
+                break
+            img, mode, strength = triple
+            if mode != MODE_OFF and img is not None and (strength or 0) > 0.0:
+                slots.append((img, mode, float(strength)))
+        if not slots:
             return
 
         _swap_attention_to_pytorch(p)
 
         try:
-            filename = MODE_TO_FILENAME.get(mode)
-            if not filename:
-                logger.warning(f"{TAG} unknown mode: {mode!r}")
-                return
-            model_path = _find_ipadapter_model(filename)
-            if not model_path:
-                logger.error(f"{TAG} cannot find model {filename}")
-                return
-
-            ipadapter = _load_ipadapter_state(model_path)
             clip_vision = _load_clipvision()
-
-            from modules_forge.utils import numpy_to_pytorch
-            cond = dict(
-                clip_vision=clip_vision,
-                image=numpy_to_pytorch(ref_image),
-                weight_type="original",
-                noise=0.0,
-                embeds=None,
-                unfold_batch=False,
-            )
-
             opApply = _get_opIPAdapterApply()
+            from modules_forge.utils import numpy_to_pytorch
             unet = p.sd_model.forge_objects.unet
-            (unet,) = opApply(
-                ipadapter=ipadapter,
-                model=unet,
-                weight=float(strength),
-                start_at=0.0,
-                end_at=1.0,
-                faceid_v2=False,
-                weight_v2=False,
-                attn_mask=None,
-                **cond,
-            )
-            p.sd_model.forge_objects.unet = unet
-
-            try:
-                p.extra_generation_params["RefImg Mode"] = mode
-                p.extra_generation_params["RefImg Strength"] = strength
-                p.extra_generation_params["RefImg Model"] = filename
-            except Exception:
-                pass
-
-            logger.info(f"{TAG} applied mode={mode!r} strength={strength} model={filename}")
+            applied = 0
+            for idx, (img, mode, strength) in enumerate(slots, start=1):
+                filename = MODE_TO_FILENAME.get(mode)
+                if not filename:
+                    logger.warning(f"{TAG} slot {idx}: unknown mode {mode!r}")
+                    continue
+                model_path = _find_ipadapter_model(filename)
+                if not model_path:
+                    logger.error(f"{TAG} slot {idx}: cannot find model {filename}")
+                    continue
+                ipadapter = _load_ipadapter_state(model_path)
+                cond = dict(
+                    clip_vision=clip_vision,
+                    image=numpy_to_pytorch(img),
+                    weight_type="original",
+                    noise=0.0,
+                    embeds=None,
+                    unfold_batch=False,
+                )
+                (unet,) = opApply(
+                    ipadapter=ipadapter,
+                    model=unet,
+                    weight=strength,
+                    start_at=0.0,
+                    end_at=1.0,
+                    faceid_v2=False,
+                    weight_v2=False,
+                    attn_mask=None,
+                    **cond,
+                )
+                applied += 1
+                try:
+                    p.extra_generation_params[f"RefImg{idx} Mode"] = mode
+                    p.extra_generation_params[f"RefImg{idx} Strength"] = strength
+                except Exception:
+                    pass
+                logger.info(f"{TAG} slot {idx}: mode={mode!r} "
+                            f"strength={strength} model={filename}")
+            if applied:
+                p.sd_model.forge_objects.unet = unet
+                logger.info(f"{TAG} stacked {applied} reference(s)")
 
         except Exception as exc:
             logger.error(f"{TAG} apply failed: {exc}\n{traceback.format_exc()}")

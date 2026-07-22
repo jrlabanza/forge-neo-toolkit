@@ -30,7 +30,7 @@ if exist ".git\refs\heads\main.lock" del /f /q ".git\refs\heads\main.lock"
 for /d %%D in (".git\objects\*") do del /f /q "%%D\tmp_obj_*" 2>nul
 
 echo Syncing live extension code into the repo...
-for %%E in (sd-forge-gallery sd-forge-model-presets sd-forge-styles-manager sd-forge-civitai-helper sd-forge-job-runner sd-forge-notify sd-forge-config-backup sd-forge-tag-translator sd-forge-prompt-enhancer sd-forge-lora-trainer sd-forge-reference-image sd-forge-ipadapter-compat sd-forge-naitosd) do (
+for %%E in (sd-forge-autopilot sd-forge-characters sd-forge-director sd-forge-gallery sd-forge-passport sd-forge-model-presets sd-forge-styles-manager sd-forge-civitai-helper sd-forge-job-runner sd-forge-notify sd-forge-config-backup sd-forge-tag-translator sd-forge-prompt-enhancer sd-forge-lora-trainer sd-forge-reference-image sd-forge-ipadapter-compat sd-forge-naitosd) do (
     robocopy "%SRC%\extensions\%%E" "extensions\%%E" /MIR /NFL /NDL /NJH /NJS ^
         /XD .git .vscode __pycache__ sd-scripts sd-scripts-venv downloads projects wd14_model user_data ^
         /XF *.pyc param_cache.json favorites.json gallery_settings.json hashes.json results.json civitai_settings.json queue.json notify_settings.json >nul
@@ -39,6 +39,10 @@ copy /Y "%SRC%\webui-user.bat" "launchers\" >nul
 copy /Y "%SRC%\webui-user-faststart.bat" "launchers\" >nul
 copy /Y "%SRC%\update_forge.bat" "launchers\" >nul 2>nul
 copy /Y "%SRC%\fix_and_launch.bat" "launchers\" >nul 2>nul
+copy /Y "%SRC%\make_shortcuts.bat" "launchers\" >nul 2>nul
+copy /Y "%SRC%\apply_ui_layout.bat" "launchers\" >nul 2>nul
+if not exist "ui" mkdir ui
+copy /Y "%SRC%\user.css" "ui\" >nul 2>nul
 copy /Y "%SRC%\FORGE_NEO_OPTIMIZATION_NOTES.md" "docs\" >nul
 
 echo Committing...

@@ -1,0 +1,180 @@
+/* ==========================================================================
+   Forge Neo — custom UI theme ("Midnight Violet")
+   Loaded automatically by Forge (user.css). Delete this file to revert.
+   Built by Claude 2026-07-21. Pure CSS: cannot break functionality.
+   ========================================================================== */
+
+/* ---- palette ---------------------------------------------------------- */
+:root, .dark {
+    --ap-bg: #0d0f15;
+    --ap-panel: #141826;
+    --ap-panel-2: #1a1f30;
+    --ap-border: #272e44;
+    --ap-text: #e7e9f2;
+    --ap-text-dim: #9aa3b8;
+    --ap-accent: #8b7cff;
+    --ap-accent-2: #b06cff;
+
+    /* gradio theme variable overrides (version-proof layer) */
+    --body-background-fill: var(--ap-bg);
+    --background-fill-primary: var(--ap-panel);
+    --background-fill-secondary: var(--ap-panel-2);
+    --block-background-fill: var(--ap-panel);
+    --border-color-primary: var(--ap-border);
+    --block-border-color: var(--ap-border);
+    --body-text-color: var(--ap-text);
+    --block-title-text-color: var(--ap-text);
+    --block-label-text-color: var(--ap-text-dim);
+    --input-background-fill: #10131d;
+    --input-border-color: var(--ap-border);
+    --input-border-color-focus: var(--ap-accent);
+    --checkbox-background-color-selected: var(--ap-accent);
+    --slider-color: var(--ap-accent);
+    --loader-color: var(--ap-accent);
+    --button-primary-background-fill: linear-gradient(135deg, var(--ap-accent) 0%, var(--ap-accent-2) 100%);
+    --button-primary-background-fill-hover: linear-gradient(135deg, #9d8fff 0%, #c07fff 100%);
+    --button-primary-text-color: #ffffff;
+    --button-secondary-background-fill: var(--ap-panel-2);
+    --button-secondary-background-fill-hover: #232a40;
+    --button-secondary-text-color: var(--ap-text);
+    --block-radius: 12px;
+    --button-large-radius: 10px;
+    --button-small-radius: 8px;
+    --input-radius: 8px;
+    --body-text-size: 14px;
+}
+
+body, .gradio-container {
+    font-family: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif !important;
+    background: var(--ap-bg) !important;
+}
+
+/* ---- top tab bar: sticky pill tabs ------------------------------------ */
+#tabs > .tab-nav, .gradio-container .tab-nav {
+    position: sticky; top: 0; z-index: 90;
+    background: rgba(13, 15, 21, 0.92) !important;
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--ap-border) !important;
+    padding: 6px 8px !important;
+    gap: 4px !important;
+    flex-wrap: wrap;
+}
+#tabs > .tab-nav > button, .tab-nav > button {
+    border: 1px solid transparent !important;
+    border-radius: 999px !important;
+    padding: 6px 14px !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    color: var(--ap-text-dim) !important;
+    background: transparent !important;
+    transition: all .15s ease;
+}
+#tabs > .tab-nav > button:hover, .tab-nav > button:hover {
+    color: var(--ap-text) !important;
+    background: var(--ap-panel-2) !important;
+}
+#tabs > .tab-nav > button.selected, .tab-nav > button.selected {
+    color: #fff !important;
+    background: linear-gradient(135deg, var(--ap-accent) 0%, var(--ap-accent-2) 100%) !important;
+    border-color: transparent !important;
+    box-shadow: 0 2px 10px rgba(139, 124, 255, .35);
+}
+
+/* ---- generate: make the main action feel like one ---------------------- */
+#txt2img_generate, #img2img_generate {
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    letter-spacing: .3px;
+    min-height: 46px !important;
+    box-shadow: 0 4px 16px rgba(139, 124, 255, .35) !important;
+    transition: transform .1s ease, box-shadow .15s ease;
+}
+#txt2img_generate:hover, #img2img_generate:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 22px rgba(176, 108, 255, .45) !important;
+}
+#txt2img_interrupt, #img2img_interrupt, #txt2img_skip, #img2img_skip {
+    background: #3a1f28 !important;
+    color: #ff9aa8 !important;
+    border: 1px solid #5c2a38 !important;
+}
+
+/* ---- prompt boxes: roomier, tag-friendly ------------------------------- */
+#txt2img_prompt textarea, #img2img_prompt textarea {
+    font-size: 14.5px !important;
+    line-height: 1.55 !important;
+    padding: 10px 12px !important;
+}
+#txt2img_neg_prompt textarea, #img2img_neg_prompt textarea {
+    font-size: 13px !important;
+    color: var(--ap-text-dim) !important;
+}
+textarea:focus, input:focus {
+    outline: none !important;
+    border-color: var(--ap-accent) !important;
+    box-shadow: 0 0 0 2px rgba(139, 124, 255, .25) !important;
+}
+
+/* ---- cards / blocks ---------------------------------------------------- */
+.block, .form {
+    border-radius: 12px !important;
+    border-color: var(--ap-border) !important;
+}
+.gradio-accordion, .gradio-group {
+    background: var(--ap-panel) !important;
+    border: 1px solid var(--ap-border) !important;
+    border-radius: 12px !important;
+}
+.gradio-accordion .label-wrap {
+    font-weight: 600 !important;
+    padding: 10px 14px !important;
+}
+.gradio-accordion .label-wrap.open {
+    border-left: 3px solid var(--ap-accent) !important;
+    background: var(--ap-panel-2) !important;
+    border-radius: 12px 12px 0 0 !important;
+}
+
+/* ---- quicksettings as a toolbar ---------------------------------------- */
+#quicksettings {
+    background: var(--ap-panel) !important;
+    border: 1px solid var(--ap-border) !important;
+    border-radius: 12px !important;
+    padding: 8px 12px !important;
+    gap: 10px !important;
+}
+
+/* ---- galleries --------------------------------------------------------- */
+.gradio-gallery, .gradio-gallery .grid-wrap {
+    background: #0f1119 !important;
+    border-radius: 12px !important;
+}
+.gradio-gallery .thumbnail-item {
+    border-radius: 10px !important;
+    border: 1px solid var(--ap-border) !important;
+    transition: transform .12s ease, border-color .12s ease;
+}
+.gradio-gallery .thumbnail-item:hover {
+    transform: scale(1.02);
+    border-color: var(--ap-accent) !important;
+}
+
+/* ---- sliders / progress ------------------------------------------------ */
+input[type="range"] { accent-color: var(--ap-accent); }
+.progress-bar, .progressDiv .progress {
+    background: linear-gradient(90deg, var(--ap-accent), var(--ap-accent-2)) !important;
+    border-radius: 6px !important;
+}
+
+/* ---- slim dark scrollbars ---------------------------------------------- */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--ap-bg); }
+::-webkit-scrollbar-thumb {
+    background: #2b3350; border-radius: 6px;
+    border: 2px solid var(--ap-bg);
+}
+::-webkit-scrollbar-thumb:hover { background: #3a4570; }
+
+/* ---- de-noise: soften footer & version clutter ------------------------- */
+footer, .versions { opacity: .35 !important; font-size: 11px !important; }
+footer:hover, .versions:hover { opacity: 1 !important; }

@@ -492,6 +492,115 @@ def t_run(checkpoints: List[str], prompt: str, negative: str, seed, steps):
 
 
 # ---------------------------------------------------------------------------
+# Tab 4: Sweet Spot finder — same-seed ladders into labeled contact sheets
+# ---------------------------------------------------------------------------
+
+LADDERS = {
+    "LoRA weight": [0.4, 0.6, 0.8, 1.0, 1.2],
+    "CFG": [3.0, 4.5, 5.5, 6.5, 8.0],
+    "Steps": [16, 22, 28, 34, 40],
+}
+
+
+def _ss_lora_list() -> List[str]:
+    names = set()
+    try:
+        from modules import paths
+        base = Path(paths.data_path)
+    except Exception:
+        base = EXT_ROOT.parents[1]
+    roots = [base / "models" / "Lora", base / "models" / "LyCORIS"]
+    try:
+        v = getattr(shared.cmd_opts, "lora_dirs", None)
+        if isinstance(v, str) and v:
+            roots.append(Path(v))
+        elif isinstance(v, (list, tuple)):
+            roots.extend(Path(x) for x in v if x)
+    except Exception:
+        pass
+    for root in roots:
+        if not root.is_dir():
+            continue
+        try:
+            for f in root.rglob("*"):
+                if f.suffix.lower() in (".safetensors", ".pt", ".ckpt") and f.is_file():
+                    names.add(f.stem)
+        except Exception:
+            pass
+    return sorted(names, key=str.lower)
+
+
+def build_ladder(mode: str, prompt: str, lora: str, seed: int, steps: int,
+                 cfg: float, width: int, height: int,
+                 sampler: str, negative: str) -> List[Tuple[str, dict]]:
+    """-> [(label, payload)] — one same-seed generation per ladder rung."""
+    out: List[Tuple[str, dict]] = []
+    base = {
+        "negative_prompt": negative, "seed": int(seed),
+        "width": int(width), "height": int(height),
+        "sampler_name": sampler or "Euler a",
+        "steps": int(steps), "cfg_scale": float(cfg),
+        "n_iter": 1, "batch_size": 1,
+        "send_images": True, "save_images": False,
+    }
+    for v in LADDERS.get(mode, []):
+        p = dict(base)
+        if mode == "LoRA weight":
+            p["prompt"] = f"{prompt}, <lora:{lora}:{v:g}>"
+            label = f"{lora[:24]} @ {v:g}"
+        elif mode == "CFG":
+            p["prompt"] = prompt
+            p["cfg_scale"] = float(v)
+            label = f"CFG {v:g}"
+        else:  # Steps
+            p["prompt"] = prompt
+            p["steps"] = int(v)
+            label = f"{int(v)} steps"
+        out.append((label, p))
+    return out
+
+
+def ss_run(mode, prompt, lora, seed, steps, cfg, width, height, sampler,
+           negative):
+    prompt = (prompt or "").strip().rstrip(",")
+    if not prompt:
+        yield None, "Write a base prompt first."
+        return
+    if mode == "LoRA weight" and not lora:
+        yield None, "Pick a LoRA for the weight ladder."
+        return
+    if not api_ok():
+        yield None, API_HINT
+        return
+    import random
+    seed = int(seed) if int(seed or -1) > 0 else random.randint(1, 2**31 - 1)
+    ladder = build_ladder(mode, prompt, lora or "", seed, steps, cfg,
+                          width, height, sampler, negative or "")
+    log = [f"🎯 {mode} ladder — fixed seed {seed}, {len(ladder)} rungs…"]
+    yield None, "\n".join(log)
+    cells: List[Tuple[str, Image.Image]] = []
+    for label, payload in ladder:
+        t0 = time.monotonic()
+        try:
+            res = _api_post("/sdapi/v1/txt2img", payload)
+            img = _img_from_b64(res["images"][0])
+            cells.append((label, img))
+            log.append(f"✓ {label} ({int(time.monotonic()-t0)}s)")
+        except Exception as exc:
+            log.append(f"✗ {label}: {exc}")
+        sheet = _contact_sheet(cells) if cells else None
+        yield sheet, "\n".join(log)
+    if cells:
+        out = _out_dir("sweet-spot") / (
+            f"{mode.replace(' ', '_').lower()}_{datetime.now().strftime('%H%M%S')}.png")
+        _contact_sheet(cells).save(out)
+        log.append(f"Saved: {out}")
+        log.append("Same seed everywhere — differences you see come only "
+                   "from the ladder value.")
+        yield _contact_sheet(cells), "\n".join(log)
+
+
+# ---------------------------------------------------------------------------
 # UI
 # ---------------------------------------------------------------------------
 
@@ -586,6 +695,43 @@ def _build_tab():
                               [ckpt_group])
             t_run_btn.click(t_run, [ckpt_group, t_prompt, t_negative, t_seed,
                                     t_steps], [t_sheet, t_log])
+
+        with gr.Tab("Sweet Spot"):
+            gr.Markdown("**Find the best value with your own eyes** — renders "
+                        "a same-seed ladder so the only variable is the one "
+                        "you're testing.")
+            with gr.Row():
+                ss_mode = gr.Radio(list(LADDERS.keys()), value="LoRA weight",
+                                   label="Ladder")
+                ss_lora = gr.Dropdown(label="LoRA (for weight ladder)",
+                                      choices=_ss_lora_list(),
+                                      allow_custom_value=True)
+                ss_lora_refresh = gr.Button("🔄", scale=0)
+            ss_prompt = gr.Textbox(label="Base prompt (without the LoRA tag)",
+                                   lines=2,
+                                   placeholder="1girl, fu hua, upper body, "
+                                               "classroom, sunset")
+            ss_negative = gr.Textbox(label="Negative",
+                                     value=DEFAULT_TEST_NEGATIVE)
+            with gr.Row():
+                ss_seed = gr.Number(label="Seed (-1 = pick once, reuse)",
+                                    value=-1, precision=0)
+                ss_steps = gr.Number(label="Steps", value=28, precision=0)
+                ss_cfg = gr.Number(label="CFG", value=5.5)
+                ss_w = gr.Number(label="Width", value=832, precision=0)
+                ss_h = gr.Number(label="Height", value=1216, precision=0)
+                ss_sampler = gr.Textbox(label="Sampler", value="Euler a")
+            ss_btn = gr.Button("🎯 Render ladder", variant="primary")
+            ss_sheet = gr.Image(label="Ladder (labeled)", type="pil",
+                                interactive=False)
+            ss_log = gr.Textbox(label="Log", lines=8, interactive=False)
+
+            ss_btn.click(ss_run,
+                         [ss_mode, ss_prompt, ss_lora, ss_seed, ss_steps,
+                          ss_cfg, ss_w, ss_h, ss_sampler, ss_negative],
+                         [ss_sheet, ss_log])
+            ss_lora_refresh.click(lambda: gr.update(choices=_ss_lora_list()),
+                                  [], [ss_lora])
 
     return [(ui, "Job Runner", "forge_job_runner")]
 

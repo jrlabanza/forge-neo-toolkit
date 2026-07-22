@@ -44,7 +44,7 @@ if exist "%~dp0PortableGit\cmd\git.exe" set "GIT=%~dp0PortableGit\cmd\git.exe"
 
 :: --api: enables the local API on 127.0.0.1 (not exposed to the network).
 ::        Required by the Job Runner tab (queue / batch re-process / test cards).
-set COMMANDLINE_ARGS=--reserve-vram 2 --pin-shared-memory --cuda-malloc --cuda-stream --skip-python-version-check --disable-gpu-warning --api
+set COMMANDLINE_ARGS=--reserve-vram 2 --pin-shared-memory --cuda-malloc --cuda-stream --skip-python-version-check --skip-version-check --disable-gpu-warning --api
 
 :: --xformers --sage --uv
 :: --skip-torch-cuda-test --skip-version-check --skip-prepare-environment --skip-install

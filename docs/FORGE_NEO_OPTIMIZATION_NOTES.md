@@ -17,6 +17,14 @@ _Follow-up session 2026-07-20 — see section 0 below._
 | `sd-forge-civitai-helper` | **Civitai** tab | Hash-matches your LoRAs to Civitai → writes trigger words into each card ("activation text" auto-inserts on click), downloads preview thumbnails, checks for newer versions. Merge-safe: never overwrites your edits or existing previews. |
 | `sd-forge-job-runner` | **Job Runner** tab | Queue (stack infotext jobs, run unattended, survives restarts) + Batch re-process (upscale / img2img-refine / +ADetailer over old outputs or Gallery favorites) + Test cards (same prompt+seed across checkpoints → labeled contact sheet). Uses the local API. |
 | `sd-forge-notify` | 🔔 accordion in txt2img/img2img | Windows toast and/or Discord webhook when a generation ran longer than N seconds. |
+| `sd-forge-passport` | **Passports** tab | Saved character identities: tags + LoRA + trigger words (auto-filled from Civitai data) + reference image. Passport pickers appear in the Characters tab (per character) and Auto Pilot (insert into prompt). Stored as plain files in `passports\`. |
+| Scene Queue | inside **Auto Pilot** | Overnight runs: one scene per line, full judge-gated Auto Pilot loop per scene with your base prompt/passport. |
+| Sweet Spot | inside **Job Runner** | Same-seed ladders across LoRA weight / CFG / steps → one labeled contact sheet. The only variable is the one you're testing. |
+| Fix Region | inside **Director** | Paint over a problem area, describe the fix, targeted only-masked inpaint (the NAI canvas-fix equivalent). |
+| `sd-forge-characters` | **Characters** tab | NAI V4.5-style multi-character scenes: one prompt per character (A/B/+C), each holds their own column via Forge Couple attention coupling; optional background line; LoRA syntax per character. |
+| `sd-forge-director` | **Director** tab | NAI Director Tools: ✨Enhance, 🎲Variations, 😊Change emotion (face-only inpaint, 10 presets), 🎨Recolor palettes, 🪄Remove background (rembg auto-installs). |
+| `sd-forge-reference-image` (upgraded) | accordion in txt2img | Now stacks up to 3 references with per-slot mode/strength (NAI vibe stacking) + a save/load **vibe library**. |
+| `sd-forge-autopilot` | **Auto Pilot** tab | Generate → judge → retry: every image is quality-gated locally (blank/blur/face/anime-aesthetic, all CPU); only passing images are kept and new seeds roll until your keeper quota is met. Saves to `output/autopilot/` with scores, reports best seeds. First run downloads the ~350 MB judge model. Also add `sd-forge-autopilot` to the sync list in `sync_and_push.bat` — done. |
 | `sd-forge-tag-translator` | **Describe** tab | Write a plain-English paragraph → correctly ordered Illustrious tag prompt (matched against the 140k-tag Danbooru dictionary, offline). Reports unmapped words, suggests tags for what the description left open (lighting, framing, mood…) + "what next" scene ideas, one-click send with quality tags + settings. Also contains the **🤖 AI prompt writer**: DanTagGen (400M local model, ~800 MB download on first click, CPU by default) that invents fitting detail tags and merges them in canonical order. |
 | `sd-forge-config-backup` | (no UI) | Snapshots config.json / ui-config.json / styles.csv on every launch to `_attic\config-autobackups\`, keeps newest 10. |
 
@@ -45,6 +53,11 @@ Superseded checkpoint versions in `models\Stable-diffusion\`:
 - `waiNSFWIllustrious_v150.safetensors` (6.5 GB) — superseded by v170
 - `waiIllustriousSDXL_v160.safetensors` (6.5 GB) — superseded by v170
 - `animagineXLV31_v31.safetensors` (6.5 GB) — superseded by animagineXL40 (optional; 3.1 has a different look some prefer)
+
+### UI redesign (2026-07-21) — "Midnight Violet"
+- `user.css` (install root, auto-loaded): sticky pill-style tab bar, gradient Generate button, violet accent, rounded cards, roomier prompt boxes, styled galleries/sliders/scrollbars, softened footer. **Revert: delete user.css** (pure cosmetics, cannot break functionality).
+- `apply_ui_layout.bat` (run while Forge is CLOSED): pins VAE + Clip Skip to the top bar and reorders tabs creation-first (txt2img, img2img, Describe, Auto Pilot, Gallery, …). Backs up config to `config.json.pre-layout.bak` first and refuses to run while Forge is up.
+- `make_shortcuts.bat`: creates "Forge Neo" + "Forge Neo (fast start)" desktop shortcuts.
 
 ### Optional VRAM lever (not applied)
 Settings → `forge_unet_storage_dtype_xl` can store the UNet in fp8 — roughly halves UNet VRAM at a small quality cost. Worth trying only if you start hitting OOM with multi-ControlNet + ADetailer stacks; otherwise leave on Automatic.
