@@ -241,6 +241,7 @@ def _build_tab():
                 name_box = gr.Textbox(label="Name (e.g. Fu Hua)")
                 tags_box = gr.Textbox(
                     label="Canonical tags", lines=3,
+                    elem_classes=["prompt"],
                     placeholder="white hair, long hair, side ponytail, "
                                 "hair between eyes, blue eyes…")
                 with gr.Row():
@@ -249,11 +250,13 @@ def _build_tab():
                     lora_w = gr.Slider(0.1, 1.5, value=0.8, step=0.05,
                                        label="Weight")
                 with gr.Row():
-                    trigger_box = gr.Textbox(label="Trigger words", scale=2)
+                    trigger_box = gr.Textbox(label="Trigger words", scale=2,
+                                             elem_classes=["prompt"])
                     trig_btn = gr.Button("✨ Auto-fill from Civitai data",
                                          scale=0)
                 neg_box = gr.Textbox(
                     label="Extra negative (character-specific)",
+                    elem_classes=["prompt"],
                     placeholder="e.g. wrong hair color tags to suppress")
             with gr.Column(scale=1):
                 ref_img = gr.Image(label="Reference image (for the Reference "

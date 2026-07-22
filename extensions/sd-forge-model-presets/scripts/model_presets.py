@@ -165,7 +165,7 @@ def _build_tab():
         subject_box = gr.Textbox(
             label="Your subject (optional — composed in front of the quality tags)",
             placeholder="e.g.  1girl, solo, fu hua, honkai (series), upper body, night sky",
-            lines=2)
+            lines=2, elem_classes=["prompt"])
 
         with gr.Row():
             quality_box = gr.Textbox(label="Quality tags (editable)", lines=3,

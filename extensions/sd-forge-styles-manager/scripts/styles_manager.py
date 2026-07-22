@@ -209,9 +209,11 @@ def _build_tab():
             with gr.Column(scale=2):
                 pick_dd = gr.Dropdown(label="Style", choices=[], value=None)
                 name_box = gr.Textbox(label="Name")
-                prompt_box = gr.Textbox(label="Prompt", lines=6, show_copy_button=True)
+                prompt_box = gr.Textbox(label="Prompt", lines=6, show_copy_button=True,
+                                        elem_classes=["prompt"])
                 negative_box = gr.Textbox(label="Negative prompt", lines=3,
-                                          show_copy_button=True)
+                                          show_copy_button=True,
+                                          elem_classes=["prompt"])
                 with gr.Row():
                     save_btn = gr.Button("💾 Save changes", variant="primary")
                     new_btn = gr.Button("➕ Save as new style")

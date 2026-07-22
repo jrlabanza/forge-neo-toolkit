@@ -1,180 +1,211 @@
 /* ==========================================================================
-   Forge Neo — custom UI theme ("Midnight Violet")
-   Loaded automatically by Forge (user.css). Delete this file to revert.
-   Built by Claude 2026-07-21. Pure CSS: cannot break functionality.
+   Forge Neo — "Slate Pro" theme v2 (professional dark)
+   Auto-loaded from user.css. Delete the file to revert. Pure CSS.
+   Built by Claude 2026-07-22.
    ========================================================================== */
 
-/* ---- palette ---------------------------------------------------------- */
 :root, .dark {
-    --ap-bg: #0d0f15;
-    --ap-panel: #141826;
-    --ap-panel-2: #1a1f30;
-    --ap-border: #272e44;
-    --ap-text: #e7e9f2;
-    --ap-text-dim: #9aa3b8;
-    --ap-accent: #8b7cff;
-    --ap-accent-2: #b06cff;
+    /* ---- design tokens ---- */
+    --sp-bg: #0b0d12;
+    --sp-surface: #12151d;
+    --sp-surface-2: #171b25;
+    --sp-surface-3: #1d2230;
+    --sp-border: rgba(255, 255, 255, 0.07);
+    --sp-border-strong: rgba(255, 255, 255, 0.14);
+    --sp-text: #e8eaf0;
+    --sp-muted: #8b93a7;
+    --sp-accent: #5b6cff;
+    --sp-accent-hover: #7481ff;
+    --sp-accent-soft: rgba(91, 108, 255, 0.16);
+    --sp-danger: #f0596c;
+    --sp-shadow: 0 1px 2px rgba(0, 0, 0, .45), 0 8px 24px rgba(0, 0, 0, .25);
 
-    /* gradio theme variable overrides (version-proof layer) */
-    --body-background-fill: var(--ap-bg);
-    --background-fill-primary: var(--ap-panel);
-    --background-fill-secondary: var(--ap-panel-2);
-    --block-background-fill: var(--ap-panel);
-    --border-color-primary: var(--ap-border);
-    --block-border-color: var(--ap-border);
-    --body-text-color: var(--ap-text);
-    --block-title-text-color: var(--ap-text);
-    --block-label-text-color: var(--ap-text-dim);
-    --input-background-fill: #10131d;
-    --input-border-color: var(--ap-border);
-    --input-border-color-focus: var(--ap-accent);
-    --checkbox-background-color-selected: var(--ap-accent);
-    --slider-color: var(--ap-accent);
-    --loader-color: var(--ap-accent);
-    --button-primary-background-fill: linear-gradient(135deg, var(--ap-accent) 0%, var(--ap-accent-2) 100%);
-    --button-primary-background-fill-hover: linear-gradient(135deg, #9d8fff 0%, #c07fff 100%);
+    /* ---- gradio variable overrides ---- */
+    --body-background-fill: var(--sp-bg);
+    --background-fill-primary: var(--sp-surface);
+    --background-fill-secondary: var(--sp-surface-2);
+    --block-background-fill: var(--sp-surface);
+    --border-color-primary: var(--sp-border);
+    --block-border-color: var(--sp-border);
+    --body-text-color: var(--sp-text);
+    --body-text-color-subdued: var(--sp-muted);
+    --block-title-text-color: var(--sp-text);
+    --block-label-text-color: var(--sp-muted);
+    --input-background-fill: #0e1118;
+    --input-border-color: var(--sp-border-strong);
+    --input-border-color-focus: var(--sp-accent);
+    --input-placeholder-color: #566078;
+    --checkbox-background-color-selected: var(--sp-accent);
+    --slider-color: var(--sp-accent);
+    --loader-color: var(--sp-accent);
+    --button-primary-background-fill: var(--sp-accent);
+    --button-primary-background-fill-hover: var(--sp-accent-hover);
     --button-primary-text-color: #ffffff;
-    --button-secondary-background-fill: var(--ap-panel-2);
-    --button-secondary-background-fill-hover: #232a40;
-    --button-secondary-text-color: var(--ap-text);
-    --block-radius: 12px;
+    --button-secondary-background-fill: var(--sp-surface-2);
+    --button-secondary-background-fill-hover: var(--sp-surface-3);
+    --button-secondary-text-color: var(--sp-text);
+    --button-secondary-border-color: var(--sp-border-strong);
+    --block-radius: 14px;
+    --container-radius: 14px;
     --button-large-radius: 10px;
     --button-small-radius: 8px;
-    --input-radius: 8px;
+    --input-radius: 10px;
     --body-text-size: 14px;
+    --block-shadow: none;
 }
 
 body, .gradio-container {
-    font-family: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif !important;
-    background: var(--ap-bg) !important;
+    font-family: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif !important;
+    background: var(--sp-bg) !important;
+    color: var(--sp-text);
+    -webkit-font-smoothing: antialiased;
 }
 
-/* ---- top tab bar: sticky pill tabs ------------------------------------ */
+/* ---- top bar: quiet segmented tabs, sticky, glassy ---------------------- */
 #tabs > .tab-nav, .gradio-container .tab-nav {
     position: sticky; top: 0; z-index: 90;
-    background: rgba(13, 15, 21, 0.92) !important;
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--ap-border) !important;
-    padding: 6px 8px !important;
-    gap: 4px !important;
+    background: rgba(11, 13, 18, 0.86) !important;
+    backdrop-filter: blur(14px) saturate(1.2);
+    border-bottom: 1px solid var(--sp-border) !important;
+    padding: 8px 10px 0 10px !important;
+    gap: 2px !important;
     flex-wrap: wrap;
 }
 #tabs > .tab-nav > button, .tab-nav > button {
-    border: 1px solid transparent !important;
-    border-radius: 999px !important;
-    padding: 6px 14px !important;
-    font-weight: 600 !important;
+    border: none !important;
+    border-bottom: 2px solid transparent !important;
+    border-radius: 8px 8px 0 0 !important;
+    padding: 8px 14px 9px 14px !important;
+    font-weight: 550 !important;
     font-size: 13px !important;
-    color: var(--ap-text-dim) !important;
+    letter-spacing: .1px;
+    color: var(--sp-muted) !important;
     background: transparent !important;
-    transition: all .15s ease;
+    transition: color .12s ease, background .12s ease;
 }
 #tabs > .tab-nav > button:hover, .tab-nav > button:hover {
-    color: var(--ap-text) !important;
-    background: var(--ap-panel-2) !important;
+    color: var(--sp-text) !important;
+    background: var(--sp-surface-2) !important;
 }
 #tabs > .tab-nav > button.selected, .tab-nav > button.selected {
-    color: #fff !important;
-    background: linear-gradient(135deg, var(--ap-accent) 0%, var(--ap-accent-2) 100%) !important;
-    border-color: transparent !important;
-    box-shadow: 0 2px 10px rgba(139, 124, 255, .35);
+    color: var(--sp-text) !important;
+    background: var(--sp-surface-2) !important;
+    border-bottom: 2px solid var(--sp-accent) !important;
+    font-weight: 650 !important;
 }
 
-/* ---- generate: make the main action feel like one ---------------------- */
+/* ---- primary action ----------------------------------------------------- */
 #txt2img_generate, #img2img_generate {
-    font-size: 16px !important;
-    font-weight: 700 !important;
-    letter-spacing: .3px;
-    min-height: 46px !important;
-    box-shadow: 0 4px 16px rgba(139, 124, 255, .35) !important;
-    transition: transform .1s ease, box-shadow .15s ease;
+    font-size: 15px !important;
+    font-weight: 650 !important;
+    letter-spacing: .2px;
+    min-height: 44px !important;
+    border-radius: 10px !important;
+    box-shadow: 0 2px 10px rgba(91, 108, 255, .35) !important;
+    transition: transform .08s ease, box-shadow .12s ease, background .12s ease;
 }
 #txt2img_generate:hover, #img2img_generate:hover {
     transform: translateY(-1px);
-    box-shadow: 0 6px 22px rgba(176, 108, 255, .45) !important;
+    box-shadow: 0 4px 16px rgba(91, 108, 255, .45) !important;
 }
+#txt2img_generate:active, #img2img_generate:active { transform: translateY(0); }
 #txt2img_interrupt, #img2img_interrupt, #txt2img_skip, #img2img_skip {
-    background: #3a1f28 !important;
-    color: #ff9aa8 !important;
-    border: 1px solid #5c2a38 !important;
+    background: rgba(240, 89, 108, 0.12) !important;
+    color: var(--sp-danger) !important;
+    border: 1px solid rgba(240, 89, 108, 0.35) !important;
+    border-radius: 10px !important;
 }
 
-/* ---- prompt boxes: roomier, tag-friendly ------------------------------- */
+/* ---- inputs ------------------------------------------------------------- */
 #txt2img_prompt textarea, #img2img_prompt textarea {
     font-size: 14.5px !important;
-    line-height: 1.55 !important;
-    padding: 10px 12px !important;
+    line-height: 1.6 !important;
+    padding: 12px 14px !important;
 }
 #txt2img_neg_prompt textarea, #img2img_neg_prompt textarea {
     font-size: 13px !important;
-    color: var(--ap-text-dim) !important;
+    color: var(--sp-muted) !important;
+}
+textarea, input[type="text"], input[type="number"] {
+    transition: border-color .12s ease, box-shadow .12s ease;
 }
 textarea:focus, input:focus {
     outline: none !important;
-    border-color: var(--ap-accent) !important;
-    box-shadow: 0 0 0 2px rgba(139, 124, 255, .25) !important;
+    border-color: var(--sp-accent) !important;
+    box-shadow: 0 0 0 3px var(--sp-accent-soft) !important;
 }
 
-/* ---- cards / blocks ---------------------------------------------------- */
+/* ---- surfaces ----------------------------------------------------------- */
 .block, .form {
-    border-radius: 12px !important;
-    border-color: var(--ap-border) !important;
+    border-radius: 14px !important;
+    border: 1px solid var(--sp-border) !important;
+    background: var(--sp-surface) !important;
 }
-.gradio-accordion, .gradio-group {
-    background: var(--ap-panel) !important;
-    border: 1px solid var(--ap-border) !important;
-    border-radius: 12px !important;
+.gradio-group, .gradio-accordion {
+    background: var(--sp-surface) !important;
+    border: 1px solid var(--sp-border) !important;
+    border-radius: 14px !important;
+    box-shadow: var(--sp-shadow);
 }
 .gradio-accordion .label-wrap {
     font-weight: 600 !important;
-    padding: 10px 14px !important;
+    font-size: 13.5px !important;
+    padding: 12px 16px !important;
+    color: var(--sp-text) !important;
 }
 .gradio-accordion .label-wrap.open {
-    border-left: 3px solid var(--ap-accent) !important;
-    background: var(--ap-panel-2) !important;
-    border-radius: 12px 12px 0 0 !important;
+    border-bottom: 1px solid var(--sp-border) !important;
+    background: var(--sp-surface-2) !important;
+    border-radius: 14px 14px 0 0 !important;
+}
+.block-title, .gradio-container label > span:first-child {
+    font-weight: 550 !important;
+    font-size: 12.5px !important;
+    letter-spacing: .2px;
+    color: var(--sp-muted) !important;
 }
 
-/* ---- quicksettings as a toolbar ---------------------------------------- */
+/* ---- quicksettings toolbar ---------------------------------------------- */
 #quicksettings {
-    background: var(--ap-panel) !important;
-    border: 1px solid var(--ap-border) !important;
-    border-radius: 12px !important;
-    padding: 8px 12px !important;
-    gap: 10px !important;
+    background: var(--sp-surface) !important;
+    border: 1px solid var(--sp-border) !important;
+    border-radius: 14px !important;
+    padding: 10px 14px !important;
+    gap: 12px !important;
+    box-shadow: var(--sp-shadow);
 }
 
-/* ---- galleries --------------------------------------------------------- */
+/* ---- galleries ----------------------------------------------------------- */
 .gradio-gallery, .gradio-gallery .grid-wrap {
-    background: #0f1119 !important;
-    border-radius: 12px !important;
+    background: #0e1118 !important;
+    border-radius: 14px !important;
 }
 .gradio-gallery .thumbnail-item {
     border-radius: 10px !important;
-    border: 1px solid var(--ap-border) !important;
-    transition: transform .12s ease, border-color .12s ease;
+    border: 1px solid var(--sp-border) !important;
+    transition: transform .1s ease, border-color .1s ease, box-shadow .1s ease;
 }
 .gradio-gallery .thumbnail-item:hover {
-    transform: scale(1.02);
-    border-color: var(--ap-accent) !important;
+    transform: translateY(-2px);
+    border-color: var(--sp-accent) !important;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .4);
 }
 
-/* ---- sliders / progress ------------------------------------------------ */
-input[type="range"] { accent-color: var(--ap-accent); }
+/* ---- misc chrome ---------------------------------------------------------- */
+input[type="range"] { accent-color: var(--sp-accent); }
 .progress-bar, .progressDiv .progress {
-    background: linear-gradient(90deg, var(--ap-accent), var(--ap-accent-2)) !important;
-    border-radius: 6px !important;
+    background: var(--sp-accent) !important;
+    border-radius: 4px !important;
+    height: 6px !important;
 }
-
-/* ---- slim dark scrollbars ---------------------------------------------- */
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: var(--ap-bg); }
+::selection { background: var(--sp-accent-soft); }
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-    background: #2b3350; border-radius: 6px;
-    border: 2px solid var(--ap-bg);
+    background: #2a3147; border-radius: 8px;
+    border: 2px solid var(--sp-bg);
 }
-::-webkit-scrollbar-thumb:hover { background: #3a4570; }
+::-webkit-scrollbar-thumb:hover { background: #39415e; }
 
-/* ---- de-noise: soften footer & version clutter ------------------------- */
-footer, .versions { opacity: .35 !important; font-size: 11px !important; }
-footer:hover, .versions:hover { opacity: 1 !important; }
+footer, .versions { opacity: .3 !important; font-size: 11px !important; }
+footer:hover, .versions:hover { opacity: .9 !important; }

@@ -660,6 +660,7 @@ def _build_tab():
             "**Describe** tab and paste it."
         )
         prompt_box = gr.Textbox(label="Prompt", lines=3,
+                                elem_classes=["prompt"],
                                 placeholder="1girl, solo, silver hair, school uniform, "
                                             "classroom, sunset, looking at viewer…")
         with gr.Row():
@@ -668,7 +669,7 @@ def _build_tab():
             pass_ins = gr.Button("Insert into prompt", scale=0)
             pass_refresh = gr.Button("🔄", scale=0)
         negative_box = gr.Textbox(label="Negative prompt", value=DEFAULT_NEGATIVE,
-                                  lines=2)
+                                  lines=2, elem_classes=["prompt"])
         with gr.Row():
             add_quality = gr.Checkbox(label="Add quality tags", value=True)
             want_face = gr.Checkbox(label="Require a clear, sharp face", value=True)
@@ -736,6 +737,7 @@ def _build_tab():
             )
             scenes_box = gr.Textbox(
                 label="Scenes (one per line)", lines=6,
+                elem_classes=["prompt"],
                 placeholder="classroom, morning light\n"
                             "rooftop, sunset, wind\n"
                             "street at night, neon lights, rain\n"

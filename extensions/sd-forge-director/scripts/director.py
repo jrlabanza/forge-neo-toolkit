@@ -102,6 +102,13 @@ def api_ok() -> bool:
         return False
 
 
+def _api_get(path: str, timeout: int = 15):
+    import requests
+    r = requests.get(f"http://127.0.0.1:{_port()}{path}", timeout=timeout)
+    r.raise_for_status()
+    return r.json()
+
+
 API_HINT = "⚠ Forge API not reachable — launch with webui-user.bat (it sets --api)."
 
 
@@ -369,6 +376,182 @@ def op_fix_region(editor_value, instruction, denoise):
     return outs, f"🖌 Region fixed in {time.monotonic()-t0:.0f}s — {msg}"
 
 
+# ---------------------------------------------------------------------------
+# Line Art / Sketch / Colorize (NAI Director parity via ControlNet API)
+# ---------------------------------------------------------------------------
+
+LINEART_CANDIDATES = ["lineart_anime", "lineart_anime_denoise",
+                      "lineart_realistic", "lineart_standard", "lineart"]
+SKETCH_CANDIDATES = ["sketch_t2ia", "t2ia_sketch_pidi", "softedge_pidinet",
+                     "pidinet_sketch", "scribble_pidinet", "softedge_hed"]
+INVERT_CANDIDATES = ["invert (from white bg & black line)", "invert"]
+
+_CN_CACHE: Dict[str, list] = {}
+
+
+def pick_first(available: List[str], candidates: List[str]) -> Optional[str]:
+    """First candidate present in available (case-insensitive). Pure."""
+    low = {a.lower(): a for a in available or []}
+    for c in candidates:
+        if c.lower() in low:
+            return low[c.lower()]
+    return None
+
+
+def _cn_modules() -> List[str]:
+    if "modules" not in _CN_CACHE:
+        try:
+            _CN_CACHE["modules"] = _api_get("/controlnet/module_list").get(
+                "module_list", [])
+        except Exception as exc:
+            logger.warning("%s module list failed: %s", TAG, exc)
+            return []
+    return _CN_CACHE["modules"]
+
+
+def _cn_models() -> List[str]:
+    if "models" not in _CN_CACHE:
+        try:
+            _CN_CACHE["models"] = _api_get("/controlnet/model_list").get(
+                "model_list", [])
+        except Exception as exc:
+            logger.warning("%s model list failed: %s", TAG, exc)
+            return []
+    return _CN_CACHE["models"]
+
+
+def _detect(im: Image.Image, module: str, res: int = 512) -> Optional[Image.Image]:
+    try:
+        r = _api_post("/controlnet/detect", {
+            "controlnet_module": module,
+            "controlnet_input_images": [_b64(im)],
+            "controlnet_processor_res": res,
+        }, timeout=300)
+        imgs = r.get("images") or []
+        return _from_b64(imgs[0]) if imgs else None
+    except Exception as exc:
+        logger.warning("%s detect(%s) failed: %s", TAG, module, exc)
+        return None
+
+
+def _op_extract(im, candidates, label, pretty):
+    if im is None:
+        return [], "Drop an image first."
+    if not api_ok():
+        return [], API_HINT
+    module = pick_first(_cn_modules(), candidates)
+    if not module:
+        return [], f"{pretty}: no matching preprocessor found on this install."
+    t0 = time.monotonic()
+    res = max(im.size)
+    res = min(int(res / 64) * 64, 1024) or 512
+    out = _detect(im, module, res)
+    if out is None:
+        return [], f"{pretty} failed — see console."
+    path = _save(out, label)
+    return [out], (f"{pretty} ({module}) in {time.monotonic()-t0:.0f}s "
+                   f"→ {path.name}")
+
+
+def op_lineart(im):
+    return _op_extract(im, LINEART_CANDIDATES, "lineart", "✒ Line art")
+
+
+def op_sketch(im):
+    return _op_extract(im, SKETCH_CANDIDATES, "sketch", "✏ Sketch")
+
+
+def build_colorize_payload(im_size: Tuple[int, int], prompt: str,
+                           negative: str, denoise: float,
+                           cn_model: Optional[str], cn_module: Optional[str],
+                           lineart_b64: str) -> dict:
+    w, h = im_size
+    payload = {
+        "prompt": prompt, "negative_prompt": negative,
+        "denoising_strength": float(denoise), "steps": 28,
+        "sampler_name": "Euler a", "cfg_scale": 6.0,
+        "width": int(w / 8) * 8, "height": int(h / 8) * 8, "seed": -1,
+        "send_images": True, "save_images": False,
+    }
+    if cn_model:
+        payload["alwayson_scripts"] = {"ControlNet": {"args": [{
+            "enabled": True,
+            "image": lineart_b64,
+            "module": cn_module or "None",
+            "model": cn_model,
+            "weight": 0.75,
+            "guidance_start": 0.0,
+            "guidance_end": 0.8,
+        }]}}
+    return payload
+
+
+def op_colorize(im, color_prompt, denoise):
+    if im is None:
+        return [], "Drop a line art / sketch first."
+    if not api_ok():
+        return [], API_HINT
+    prompt = (color_prompt or "").strip().rstrip(",")
+    prompt = f"{prompt}, {FALLBACK_PROMPT}" if prompt else \
+        f"colored, vibrant colors, {FALLBACK_PROMPT}"
+    cn_model = next((m for m in _cn_models() if "promax" in m.lower()), None)
+    cn_module = pick_first(_cn_modules(), INVERT_CANDIDATES) if cn_model else None
+    t0 = time.monotonic()
+    payload = build_colorize_payload(im.size, prompt, FALLBACK_NEGATIVE,
+                                     denoise, cn_model, cn_module, _b64(im))
+    outs, msg = _run_img2img(im, payload, "colorize")
+    held = "lines held by ControlNet union" if cn_model else \
+        "no union ControlNet found — colorized freely from the init image"
+    return outs, f"🖍 Colorized in {time.monotonic()-t0:.0f}s ({held}) — {msg}"
+
+
+def op_load_handoff():
+    """Load the image the Gallery's '→ Director' button pointed at."""
+    try:
+        pointer = EXT_ROOT.parent / "sd-forge-gallery" / "director_handoff.txt"
+        path = pointer.read_text("utf-8").strip()
+        im = Image.open(path)
+        im.load()
+        return im, f"📥 Loaded from Gallery: {Path(path).name}"
+    except Exception:
+        return None, "No Gallery handoff found — use '→ Director' in the Gallery first."
+
+
+def op_finalize(im, scale, denoise, cutout):
+    """Macro: Enhance → (optional Remove BG) → save to output/final/."""
+    if im is None:
+        return [], "Drop an image first."
+    if not api_ok():
+        return [], API_HINT
+    p, n = _embedded_params(im)
+    t0 = time.monotonic()
+    outs, _ = _run_img2img(im, build_enhance_payload(im.size, p, n,
+                                                     float(scale), float(denoise)),
+                           "final_enhance")
+    if not outs:
+        return [], "Finalize failed at the enhance step."
+    result = outs[-1]
+    steps = ["enhanced"]
+    if cutout:
+        try:
+            from rembg import remove
+            result = remove(result.convert("RGBA"))
+            steps.append("background removed")
+        except Exception as exc:
+            steps.append(f"cutout skipped ({exc})")
+    try:
+        from modules import paths
+        base = Path(paths.data_path)
+    except Exception:
+        base = EXT_ROOT.parents[1]
+    final_dir = base / "output" / "final"
+    final_dir.mkdir(parents=True, exist_ok=True)
+    out_path = final_dir / f"final_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+    result.save(out_path)
+    return [result], (f"🏁 Finalized in {time.monotonic()-t0:.0f}s "
+                      f"({' → '.join(steps)}) → {out_path}")
+
+
 def op_removebg(im):
     if im is None:
         return [], "Drop an image first."
@@ -411,6 +594,7 @@ def _build_tab():
         with gr.Row():
             with gr.Column(scale=1):
                 image_in = gr.Image(label="Image", type="pil", height=420)
+                handoff_btn = gr.Button("📥 From Gallery")
                 status = gr.Markdown("")
             with gr.Column(scale=2):
                 with gr.Group():
@@ -442,6 +626,25 @@ def _build_tab():
                                                  label="Strength")
                 with gr.Group():
                     rbg_btn = gr.Button("🪄 Remove background", variant="primary")
+                with gr.Group():
+                    with gr.Row():
+                        fin_btn = gr.Button("🏁 Finalize (enhance → final/)",
+                                            variant="primary")
+                        fin_cutout = gr.Checkbox(label="+ background cutout",
+                                                 value=False)
+                with gr.Group():
+                    with gr.Row():
+                        la_btn = gr.Button("✒ Line art", variant="primary")
+                        sk_btn = gr.Button("✏ Sketch", variant="primary")
+                with gr.Group():
+                    with gr.Row():
+                        col_btn = gr.Button("🖍 Colorize", variant="primary")
+                        col_prompt = gr.Textbox(
+                            label="Colors / look", scale=2,
+                            elem_classes=["prompt"],
+                            placeholder="silver hair, red dress, golden hour")
+                        col_denoise = gr.Slider(0.5, 0.95, value=0.8,
+                                                step=0.05, label="Strength")
         with gr.Accordion("🖌 Fix Region — paint over a problem, describe the fix",
                           open=False):
             fix_editor = gr.ImageEditor(label="Paint the region to redo",
@@ -449,6 +652,7 @@ def _build_tab():
             with gr.Row():
                 fix_prompt = gr.Textbox(
                     label="What should be there?", scale=3,
+                    elem_classes=["prompt"],
                     placeholder="e.g.  perfect hand, five fingers  ·  "
                                 "clean background  ·  blue eyes")
                 fix_denoise = gr.Slider(0.2, 0.9, value=0.55, step=0.05,
@@ -466,6 +670,14 @@ def _build_tab():
                       [results, status])
         rbg_btn.click(op_removebg, [image_in], [results, status])
         fix_btn.click(op_fix_region, [fix_editor, fix_prompt, fix_denoise],
+                      [results, status])
+        handoff_btn.click(op_load_handoff, [], [image_in, status])
+        fin_btn.click(op_finalize,
+                      [image_in, enhance_scale, enhance_denoise, fin_cutout],
+                      [results, status])
+        la_btn.click(op_lineart, [image_in], [results, status])
+        sk_btn.click(op_sketch, [image_in], [results, status])
+        col_btn.click(op_colorize, [image_in, col_prompt, col_denoise],
                       [results, status])
 
     return [(ui, "Director", "forge_director")]

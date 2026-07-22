@@ -320,6 +320,146 @@ def do_check_updates():
 
 
 # ---------------------------------------------------------------------------
+# In-app model downloader
+# ---------------------------------------------------------------------------
+
+API_SEARCH = "https://civitai.com/api/v1/models"
+TYPE_DIRS = {"LORA": ("models", "Lora"), "Checkpoint": ("models", "Stable-diffusion")}
+
+
+def _api_key() -> str:
+    return str(_load_json(SETTINGS_FILE, {}).get("api_key") or "")
+
+
+def parse_search_results(data: dict) -> List[dict]:
+    """Civitai /models response -> flat result entries (pure, unit tested)."""
+    out = []
+    for item in (data or {}).get("items", []):
+        versions = item.get("modelVersions") or []
+        if not versions:
+            continue
+        v = versions[0]
+        files = v.get("files") or []
+        f = next((x for x in files if x.get("primary")), files[0] if files else None)
+        if not f or not f.get("downloadUrl"):
+            continue
+        out.append({
+            "name": item.get("name", "?"),
+            "type": item.get("type", "?"),
+            "version": v.get("name", "?"),
+            "filename": f.get("name") or "model.safetensors",
+            "size_mb": round(float(f.get("sizeKB") or 0) / 1024, 1),
+            "downloads": item.get("stats", {}).get("downloadCount", 0),
+            "url": f["downloadUrl"],
+            "trainedWords": v.get("trainedWords") or [],
+            "modelId": item.get("id"),
+            "versionId": v.get("id"),
+            "baseModel": v.get("baseModel"),
+            "images": [im.get("url") for im in (v.get("images") or [])
+                       if im.get("url")][:3],
+        })
+    return out
+
+
+def results_rows(entries: List[dict]) -> List[List[str]]:
+    return [[str(i + 1), e["name"][:40], e["type"], e["version"][:20],
+             f"{e['size_mb']} MB", str(e["downloads"])]
+            for i, e in enumerate(entries)]
+
+
+def dl_search(query, mtype):
+    if not (query or "").strip():
+        return [], [], "Type a search term first."
+    try:
+        import requests
+        params = {"query": query.strip(), "types": mtype, "limit": 10,
+                  "nsfw": "true", "sort": "Most Downloaded"}
+        headers = {"User-Agent": "sd-forge-civitai-helper/1.0"}
+        if _api_key():
+            headers["Authorization"] = f"Bearer {_api_key()}"
+        r = requests.get(API_SEARCH, params=params, headers=headers, timeout=25)
+        r.raise_for_status()
+        entries = parse_search_results(r.json())
+        return (results_rows(entries), entries,
+                f"{len(entries)} result(s) — pick a # and Download.")
+    except Exception as exc:
+        return [], [], f"Search failed: {exc}"
+
+
+def _dl_target(entry: dict) -> Path:
+    from modules import paths
+    base = Path(paths.data_path)
+    sub = TYPE_DIRS.get(entry.get("type"), ("models", "Lora"))
+    d = base.joinpath(*sub)
+    d.mkdir(parents=True, exist_ok=True)
+    return d / entry["filename"]
+
+
+def dl_download(entries, number):
+    try:
+        idx = int(number) - 1
+        entry = (entries or [])[idx]
+    except Exception:
+        yield "Pick a valid result # first."
+        return
+    try:
+        target = _dl_target(entry)
+    except Exception as exc:
+        yield f"Cannot resolve target folder: {exc}"
+        return
+    if target.exists():
+        yield f"Already exists: {target.name} — nothing to do."
+        return
+    import requests
+    headers = {"User-Agent": "sd-forge-civitai-helper/1.0"}
+    if _api_key():
+        headers["Authorization"] = f"Bearer {_api_key()}"
+    tmp = target.with_suffix(target.suffix + ".part")
+    try:
+        with requests.get(entry["url"], headers=headers, stream=True,
+                          timeout=60, allow_redirects=True) as r:
+            if r.status_code in (401, 403):
+                yield ("⛔ Civitai requires a login for this file. Put your API "
+                       "key in civitai_settings.json as {\"api_key\": \"…\"} "
+                       "(create one at civitai.com/user/account) and retry.")
+                return
+            r.raise_for_status()
+            total = int(r.headers.get("content-length") or 0)
+            done = 0
+            next_mark = 0
+            yield f"⬇ {entry['name']} → {target.name} ({entry['size_mb']} MB)…"
+            with open(tmp, "wb") as fh:
+                for chunk in r.iter_content(chunk_size=1024 * 1024):
+                    if not chunk:
+                        continue
+                    fh.write(chunk)
+                    done += len(chunk)
+                    if total and done >= next_mark:
+                        pct = done * 100 // total
+                        yield f"⬇ {entry['name']}: {pct}% ({done/1e6:.0f} MB)"
+                        next_mark = done + max(total // 20, 20_000_000)
+        tmp.rename(target)
+    except Exception as exc:
+        try:
+            tmp.unlink(missing_ok=True)
+        except Exception:
+            pass
+        yield f"Download failed: {exc}"
+        return
+    log: List[str] = [f"✅ Saved: {target}"]
+    if entry.get("type") == "LORA":
+        info = {"versionId": entry.get("versionId"), "versionName": entry.get("version"),
+                "modelId": entry.get("modelId"), "modelName": entry.get("name"),
+                "baseModel": entry.get("baseModel"),
+                "trainedWords": entry.get("trainedWords") or [],
+                "images": entry.get("images") or [],
+                "page": f"https://civitai.com/models/{entry.get('modelId')}"}
+        _write_sidecars(target, info, log)
+        log.append("Card metadata + preview written — refresh the Lora tab.")
+    yield "\n".join(log)
+
+
+# ---------------------------------------------------------------------------
 # UI
 # ---------------------------------------------------------------------------
 
@@ -358,10 +498,33 @@ def _build_tab():
         def do_fetch_all():
             yield from do_fetch(False)
 
+        with gr.Accordion("⬇ Get new models from Civitai", open=False):
+            with gr.Row():
+                dl_query = gr.Textbox(label="Search", scale=3,
+                                      placeholder="e.g.  fu hua illustrious",
+                                      elem_classes=["prompt"])
+                dl_type = gr.Radio(["LORA", "Checkpoint"], value="LORA",
+                                   label="Type")
+                dl_search_btn = gr.Button("🔍 Search", scale=0)
+            dl_table = gr.Dataframe(
+                headers=["#", "name", "type", "version", "size", "downloads"],
+                interactive=False, wrap=True)
+            with gr.Row():
+                dl_num = gr.Number(label="Result #", value=1, precision=0,
+                                   scale=0)
+                dl_btn = gr.Button("⬇ Download", variant="primary", scale=0)
+                gr.Markdown("*LoRAs land in models/Lora with trigger words + "
+                            "preview auto-written. Checkpoints go to "
+                            "models/Stable-diffusion (multi-GB — watch the log).*")
+            dl_state = gr.State([])
+
         scan_btn.click(do_scan, [], [table, info_md])
         fetch_missing_btn.click(do_fetch_missing, [], [log_box, table])
         fetch_all_btn.click(do_fetch_all, [], [log_box, table])
         updates_btn.click(do_check_updates, [], [log_box])
+        dl_search_btn.click(dl_search, [dl_query, dl_type],
+                            [dl_table, dl_state, info_md])
+        dl_btn.click(dl_download, [dl_state, dl_num], [log_box])
         ui.load(do_scan, [], [table, info_md])
 
     return [(ui, "Civitai", "forge_civitai_helper")]

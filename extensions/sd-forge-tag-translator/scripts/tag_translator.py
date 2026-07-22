@@ -559,7 +559,7 @@ def _build_tab():
                                         value=True, scale=0)
 
         prompt_box = gr.Textbox(label="Illustrious prompt (editable)", lines=4,
-                                show_copy_button=True)
+                                show_copy_button=True, elem_classes=["prompt"])
         unmatched_md = gr.Markdown("")
 
         with gr.Row():
@@ -606,7 +606,8 @@ def _build_tab():
             ai_status = gr.Markdown("")
 
         negative_box = gr.Textbox(label="Negative prompt", value=NEGATIVE_TAGS,
-                                  lines=2, show_copy_button=True)
+                                  lines=2, show_copy_button=True,
+                                  elem_classes=["prompt"])
         composed_box = gr.Textbox(visible=False)
         with gr.Row():
             send_t2i = gr.Button("Send to txt2img (replaces prompt + settings)",

@@ -226,6 +226,53 @@ def _ensure_index(files: List[Tuple[str, float]],
 
 
 # ---------------------------------------------------------------------------
+# Trash (safe delete: move into output/_trash, never actually deletes)
+# ---------------------------------------------------------------------------
+
+def _trash_dir() -> Path:
+    d = _data_path() / "output" / "_trash"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def trash_files(paths: List[str]) -> Tuple[int, str]:
+    import shutil
+    moved = 0
+    for p in paths:
+        try:
+            src = Path(p)
+            if src.is_file():
+                dest = _trash_dir() / src.name
+                i = 1
+                while dest.exists():
+                    dest = _trash_dir() / f"{src.stem}_{i}{src.suffix}"
+                    i += 1
+                shutil.move(str(src), str(dest))
+                moved += 1
+        except Exception as exc:
+            logger.warning("%s trash failed for %s: %s", TAG, p, exc)
+    return moved, f"🗑 {moved} file(s) moved to output/_trash (restore by moving back)."
+
+
+# ---------------------------------------------------------------------------
+# Director handoff (cross-tab image passing via a small pointer file)
+# ---------------------------------------------------------------------------
+
+HANDOFF_FILE = EXT_ROOT / "director_handoff.txt"
+
+
+def send_to_director(path: str) -> str:
+    if not path or not Path(path).is_file():
+        return "Select an image first."
+    try:
+        HANDOFF_FILE.write_text(path, "utf-8")
+        return ("→ Sent. Open the **Director** tab and press **📥 From "
+                "Gallery**.")
+    except Exception as exc:
+        return f"Handoff failed: {exc}"
+
+
+# ---------------------------------------------------------------------------
 # Favorites
 # ---------------------------------------------------------------------------
 
@@ -337,7 +384,7 @@ def _build_tab():
             refresh_btn = gr.Button("🔄 Refresh", variant="primary", scale=0)
             search_box = gr.Textbox(label="Search prompts / parameters / filenames",
                                     placeholder="e.g.  fu hua, cowboy_shot, seed, model name…",
-                                    scale=3)
+                                    scale=3, elem_classes=["prompt"])
             date_dd = gr.Dropdown(label="Date", choices=["All dates"],
                                   value="All dates", scale=1)
             favs_only = gr.Checkbox(label="★ Favorites only", value=False, scale=0)
@@ -361,7 +408,25 @@ def _build_tab():
                     fav_btn = gr.Button("★ Toggle favorite")
                     send_t2i = gr.Button("Send to txt2img", variant="primary")
                     send_i2i = gr.Button("Send to img2img")
+                    director_btn = gr.Button("→ Director")
                 status = gr.Markdown("")
+                with gr.Accordion("🧺 Selection set (bulk actions)", open=False):
+                    set_md = gr.Markdown("*empty*")
+                    with gr.Row():
+                        set_add_btn = gr.Button("➕ Add current", scale=0)
+                        set_clear_btn = gr.Button("Clear", scale=0)
+                        set_fav_btn = gr.Button("★ Favorite set", scale=0)
+                        set_trash_btn = gr.Button("🗑 Trash set",
+                                                  variant="stop", scale=0)
+                with gr.Accordion("⚖ A/B compare", open=False):
+                    with gr.Row():
+                        set_a_btn = gr.Button("Set current as A", scale=0)
+                        set_b_btn = gr.Button("Set current as B", scale=0)
+                    with gr.Row():
+                        img_a = gr.Image(label="A", type="pil",
+                                         interactive=False, height=300)
+                        img_b = gr.Image(label="B", type="pil",
+                                         interactive=False, height=300)
 
         # server-side state
         st_filtered = gr.State([])   # full filtered path list
@@ -432,6 +497,55 @@ def _build_tab():
                        inputs=[st_page_paths],
                        outputs=[sel_image, params_box, path_box, st_selected, status])
         fav_btn.click(do_fav, inputs=[st_selected], outputs=[status])
+        director_btn.click(send_to_director, [st_selected], [status])
+
+        # ---- selection set ------------------------------------------------
+        st_set = gr.State([])
+
+        def set_add(sel, cur):
+            cur = list(cur or [])
+            if sel and sel not in cur:
+                cur.append(sel)
+            names = ", ".join(os.path.basename(p) for p in cur) or "*empty*"
+            return cur, f"**{len(cur)} in set:** {names[:400]}"
+
+        def set_clear():
+            return [], "*empty*"
+
+        def set_fav(cur):
+            n = 0
+            with _lock:
+                favs = _favs()
+                for p in cur or []:
+                    if p not in favs:
+                        favs.add(p)
+                        n += 1
+                _save_json(FAV_FILE, sorted(favs))
+            return f"★ {n} added to favorites."
+
+        def set_trash(cur, search, date_pick, favs_flag):
+            _, msg = trash_files(list(cur or []))
+            paths = _filtered_list(search, date_pick, favs_flag)
+            items, kept, page, label = _page_items(paths, 1)
+            return ([], "*empty*", msg, items, paths, kept, page, label)
+
+        set_add_btn.click(set_add, [st_selected, st_set], [st_set, set_md])
+        set_clear_btn.click(set_clear, [], [st_set, set_md])
+        set_fav_btn.click(set_fav, [st_set], [status])
+        set_trash_btn.click(set_trash,
+                            [st_set, search_box, date_dd, favs_only],
+                            [st_set, set_md, status, gallery, st_filtered,
+                             st_page_paths, st_page, page_label])
+
+        # ---- A/B compare --------------------------------------------------
+        def _load_ab(path):
+            try:
+                return Image.open(path).convert("RGB")
+            except Exception:
+                return None
+
+        set_a_btn.click(_load_ab, [st_selected], [img_a])
+        set_b_btn.click(_load_ab, [st_selected], [img_b])
 
         # Send-to buttons via Forge's paste-params API (same as NAI Converter).
         _wire_send_buttons(send_t2i, send_i2i, params_box, sel_image, status)

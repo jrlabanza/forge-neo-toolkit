@@ -680,7 +680,7 @@ def _build_tab():
                 ckpt_group = gr.CheckboxGroup(label="Checkpoints", choices=[])
                 load_ck_btn = gr.Button("🔄 Load checkpoint list", scale=0)
             t_prompt = gr.Textbox(label="Test prompt", value=DEFAULT_TEST_PROMPT,
-                                  lines=2)
+                                  lines=2, elem_classes=["prompt"])
             t_negative = gr.Textbox(label="Negative", value=DEFAULT_TEST_NEGATIVE)
             with gr.Row():
                 t_seed = gr.Number(label="Seed", value=123456789, precision=0)
@@ -708,7 +708,7 @@ def _build_tab():
                                       allow_custom_value=True)
                 ss_lora_refresh = gr.Button("🔄", scale=0)
             ss_prompt = gr.Textbox(label="Base prompt (without the LoRA tag)",
-                                   lines=2,
+                                   lines=2, elem_classes=["prompt"],
                                    placeholder="1girl, fu hua, upper body, "
                                                "classroom, sunset")
             ss_negative = gr.Textbox(label="Negative",

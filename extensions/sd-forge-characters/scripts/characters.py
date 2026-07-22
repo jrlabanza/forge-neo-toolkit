@@ -287,6 +287,7 @@ def _build_tab():
         with gr.Row():
             with gr.Column():
                 char_a = gr.Textbox(label="Character A (left)", lines=3,
+                                    elem_classes=["prompt"],
                                     placeholder="1girl, fu hua, white hair, "
                                                 "school uniform, smile, <lora:…>")
                 with gr.Row():
@@ -296,6 +297,7 @@ def _build_tab():
                     ins_a = gr.Button("Insert", scale=0)
             with gr.Column():
                 char_b = gr.Textbox(label="Character B (right)", lines=3,
+                                    elem_classes=["prompt"],
                                     placeholder="1girl, vivian, purple hair, "
                                                 "black dress, serious")
                 with gr.Row():
@@ -306,7 +308,8 @@ def _build_tab():
             with gr.Column():
                 use_c = gr.Checkbox(label="Add character C (middle-right)",
                                     value=False)
-                char_c = gr.Textbox(label="Character C", lines=3)
+                char_c = gr.Textbox(label="Character C", lines=3,
+                                    elem_classes=["prompt"])
                 with gr.Row():
                     pass_c = gr.Dropdown(label="🪪 Passport C",
                                          choices=list_passports(), value="",
@@ -316,16 +319,18 @@ def _build_tab():
         with gr.Row():
             background = gr.Textbox(
                 label="Background / scene (optional, whole frame)",
+                elem_classes=["prompt"],
                 placeholder="classroom, sunset, window light", scale=2)
             bg_weight = gr.Slider(0.1, 1.2, value=0.5, step=0.05,
                                   label="Background weight")
         with gr.Row():
             shared_tags = gr.Textbox(
                 label="Shared tags (applied to every character)",
+                elem_classes=["prompt"],
                 value="2girls, looking at viewer", scale=2)
             add_quality = gr.Checkbox(label="Add quality tags", value=True)
         negative = gr.Textbox(label="Negative prompt", value=DEFAULT_NEGATIVE,
-                              lines=2)
+                              lines=2, elem_classes=["prompt"])
         with gr.Accordion("Generation settings", open=False):
             with gr.Row():
                 steps = gr.Number(label="Steps", value=28, precision=0)
